@@ -36,7 +36,7 @@ jobs:
           # - Compute 8+ metrics (nulls, distributions, PSI, KS test, etc.)
           # - Report metrics and thresholds
           # - Determine if any alerts should fire
-          python3 scripts/compute_metrics.py
+          python3 scripts/compute_metrics.py --baseline <file> --new <file>
 
       - name: Detect drift patterns
         id: drift
