@@ -1,0 +1,73 @@
+name: Drift Monitoring
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # TODO: Choose your frequency (hourly? daily? weekly?)
+  push:
+    branches: [main]
+    paths:
+      - 'week4/data/**'
+      - 'week4/scripts/**'
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pandas pyarrow numpy scipy
+
+      - name: Compute monitoring metrics
+        id: metrics
+        run: |
+          cd week4
+          # TODO: Implement metric computation
+          # - Load baseline and current data
+          # - Compute 8+ metrics (nulls, distributions, PSI, KS test, etc.)
+          # - Report metrics and thresholds
+          # - Determine if any alerts should fire
+          python3 scripts/compute_metrics.py
+
+      - name: Detect drift patterns
+        id: drift
+        run: |
+          cd week4
+          # TODO: Implement drift detection
+          # - Run statistical tests (KS, PSI, chi-square)
+          # - Identify 4+ drift patterns
+          # - Document evidence for each pattern
+          python3 scripts/detect_drift.py
+
+      - name: Upload metrics
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: monitoring-metrics
+          path: week4/metrics-*.json
+
+      - name: Create alert if drift detected
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Drift detected in monitoring',
+              body: 'Monitoring workflow detected data or concept drift. Check logs for details.',
+              labels: ['drift-alert']
+            })
+
+      - name: Monitoring complete
+        if: success()
+        run: echo "Drift monitoring complete - no issues detected"
