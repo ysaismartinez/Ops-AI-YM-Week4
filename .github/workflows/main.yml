@@ -37,6 +37,7 @@ jobs:
 
       - name: Compute monitoring metrics
         id: metrics
+        continue-on-error: true
         run: |
           cd week4
           python3 scripts/compute_metrics.py \
@@ -46,6 +47,7 @@ jobs:
 
       - name: Detect drift patterns
         id: drift
+        continue-on-error: true
         run: |
           cd week4
           python3 scripts/detect_drift.py \
@@ -62,8 +64,8 @@ jobs:
             week4/metrics-monitoring.json
             week4/drift_report.json
 
-      - name: Create alert if drift detected
-        if: failure()
+      - name: Create alert issue if drift detected
+        if: steps.metrics.outcome == 'failure' || steps.drift.outcome == 'failure'
         uses: actions/github-script@v7
         with:
           script: |
@@ -74,6 +76,12 @@ jobs:
               body: 'Monitoring workflow detected data or concept drift. Check logs and uploaded monitoring reports for details.',
               labels: ['drift-alert']
             })
+
+      - name: Mark workflow failed if drift detected
+        if: steps.metrics.outcome == 'failure' || steps.drift.outcome == 'failure'
+        run: |
+          echo "Drift detected. Reports were uploaded and an alert issue was created."
+          exit 1
 
       - name: Monitoring complete
         if: success()
