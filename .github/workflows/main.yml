@@ -2,72 +2,79 @@ name: Drift Monitoring
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Hourly
+    - cron: '0 * * * *'
   push:
     branches: [main]
     paths:
       - 'week4/data/**'
       - 'week4/scripts/**'
+      - '.github/workflows/monitor-drift.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out repository
+        uses: actions/checkout@v4
         with:
           lfs: true
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          pip install pandas pyarrow numpy scipy
+          python -m pip install --upgrade pip
+          pip install pandas pyarrow numpy scipy scikit-learn pytest
 
       - name: Compute monitoring metrics
         id: metrics
         run: |
           cd week4
-          # TODO: Implement metric computation
-          # - Load baseline and current data
-          # - Compute 8+ metrics (nulls, distributions, PSI, KS test, etc.)
-          # - Report metrics and thresholds
-          # - Determine if any alerts should fire
-          python3 scripts/compute_metrics.py --baseline <file> --new <file>
+          python3 scripts/compute_metrics.py \
+            --baseline data/jan_1_15_baseline.csv \
+            --new data/feb_2_28_current.csv \
+            --output metrics-monitoring.json
 
       - name: Detect drift patterns
         id: drift
         run: |
           cd week4
-          # TODO: Implement drift detection
-          # - Run statistical tests (KS, PSI, chi-square)
-          # - Identify 4+ drift patterns
-          # - Document evidence for each pattern
-          python3 scripts/detect_drift.py
+          python3 scripts/detect_drift.py \
+            --baseline data/jan_1_15_baseline.csv \
+            --new data/feb_2_28_current.csv \
+            --output drift_report.json
 
-      - name: Upload metrics
+      - name: Upload monitoring reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: monitoring-metrics
-          path: week4/metrics-*.json
+          name: monitoring-reports
+          path: |
+            week4/metrics-monitoring.json
+            week4/drift_report.json
 
       - name: Create alert if drift detected
         if: failure()
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.create({
+            await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: 'Drift detected in monitoring',
-              body: 'Monitoring workflow detected data or concept drift. Check logs for details.',
+              body: 'Monitoring workflow detected data or concept drift. Check logs and uploaded monitoring reports for details.',
               labels: ['drift-alert']
             })
 
       - name: Monitoring complete
         if: success()
-        run: echo "Drift monitoring complete - no issues detected"
+        run: echo "Drift monitoring complete. No issues detected."
