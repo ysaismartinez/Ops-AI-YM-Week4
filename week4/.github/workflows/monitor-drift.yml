@@ -2,7 +2,7 @@ name: Drift Monitoring
 
 on:
   schedule:
-    - cron: '0 * * * *'  # TODO: Choose your frequency (hourly? daily? weekly?)
+    - cron: '0 * * * *'  # Hourly
   push:
     branches: [main]
     paths:
